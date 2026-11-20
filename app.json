@@ -1,0 +1,30 @@
+{
+ "store": "طرابيه",
+ "sub": "للأدوات المنزلية",
+ "banner": "🚚 توصيل مجاني لأي فاتورة أكتر من 700 جنيه داخل جمصة",
+ "free_over": 700,
+ "free_text": "🎉 توصيل مجاني داخل جمصة",
+ "hint_text": "🚚 ضيف {n} ج كمان ويبقى التوصيل مجاني داخل جمصة",
+ "whatsapp": "201018806354",
+ "wa_link": "https://wa.me/message/NO6AHUKPPHO3L1",
+ "show_price": true,
+ "offers_first": true,
+ "new_days": 14,
+ "low_stock": 5,
+ "limit_to_stock": true,
+ "notice": "",
+ "min_price": 4,
+ "only_pos": true,
+ "hide_no_image": true,
+ "hide_out_of_stock": true,
+ "recent_days": 365,
+ "offers": {
+  "enabled": true,
+  "days": 14,
+  "min_drop_percent": 5,
+  "manual": {}
+ },
+ "recent_source": [
+  "purchase"
+ ]
+}
