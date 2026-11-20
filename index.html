@@ -24,21 +24,24 @@ header .t{flex:1;line-height:1.2}header .t b{font-size:21px;display:block}header
 .chip-c{flex:none;border:0;background:#fff;color:var(--brand);border-radius:20px;padding:8px 14px;font-size:13px;font-weight:700}
 .chip-c.on{background:var(--brand);color:#fff}
 
-/* شريط المقاسات على سطرين داخل الصفحة */
+/* شريط مجموعات المقاسات على سطرين داخل الصفحة */
 #sizebar{display:none;align-items:flex-start;gap:8px;padding:0 2px 10px}
 #sizebar b{flex:none;font-size:13px;color:var(--mut);padding-top:8px}
 #sizechips{
   display:grid;
-  grid-template-rows:repeat(2, auto);
-  grid-auto-flow:column;
+  grid-template-columns:repeat(4, minmax(0, 1fr));
   gap:6px;
-  overflow-x:auto;
-  max-width:100%;
-  padding-bottom:4px;
-  scrollbar-width:none;
+  flex:1;
 }
-#sizechips::-webkit-scrollbar{display:none}
-#sizechips .chip-c{padding:6px 12px;font-size:12px;text-align:center}
+#sizechips .chip-c{
+  flex:initial;
+  width:100%;
+  padding:7px 6px;
+  font-size:12px;
+  border-radius:12px;
+  text-align:center;
+  white-space:nowrap;
+}
 
 #count{color:var(--mut);font-size:12px;padding:0 4px 6px}
 #grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:10px}
@@ -127,6 +130,15 @@ const DEF = {store:'طرابيه', sub:'للأدوات المنزلية',
   low_stock:5, limit_to_stock:true, notice:'', offers_first:true};
 let CFG = Object.assign({}, DEF), P = [], byId = {}, cart = [], cat = '', q = '', size = '', shown = 0, curList = [];
 const PAGE = 60;
+const SIZE_RANGES = [
+  {key:'17-20', label:'17–20', min:17, max:20},
+  {key:'21-25', label:'21–25', min:21, max:25},
+  {key:'26-30', label:'26–30', min:26, max:30},
+  {key:'31-35', label:'31–35', min:31, max:35},
+  {key:'36-40', label:'36–40', min:36, max:40},
+  {key:'41-45', label:'41–45', min:41, max:45},
+  {key:'46-50', label:'46–50', min:46, max:50}
+];
 try { cart = JSON.parse(localStorage.getItem('tb_cart') || '[]'); } catch (e) { cart = []; }
 const saveCart = () => { try { localStorage.setItem('tb_cart', JSON.stringify(cart)); } catch (e) {} renderBar(); };
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -138,27 +150,28 @@ function toast(m) { const t = $('#toast'); t.textContent = m; t.style.display = 
 function stock(v) { if (v < 1) return ['نفدت الكمية', 'out']; if (v <= CFG.low_stock) return ['كمية قليلة: ' + fmt(v), 'low']; return ['متوفر: ' + fmt(v), 'ok']; }
 function isNew(cd) { const t = Date.parse(String(cd || '').replace(' ', 'T') + 'Z'); return !!t && (Date.now() - t) < CFG.new_days * 864e5; }
 const tok = l => String(l || '').split('/').map(s => s.trim()).filter(Boolean);
+function matchRange(label, rangeKey) {
+  const r = SIZE_RANGES.find(x => x.key === rangeKey);
+  if (!r) return true;
+  for (const part of tok(label)) {
+    const nums = (part.match(/\d+(?:\.\d+)?/g) || []).map(Number).filter(n => n >= 17 && n <= 50);
+    if (nums.some(n => n >= r.min && n <= r.max)) return true;
+  }
+  return false;
+}
 function sizeList(p) {
   const a = p.v.filter(x => x.q >= 1 && x.l).map(x => x.l);
   return a.length ? a.slice(0, 4).join(' · ') + (a.length > 4 ? ' …' : '') : p.v.length + ' مقاسات/خيارات';
 }
 function renderSizes() {
-  const disp = {};
-  P.forEach(p => p.v.forEach(v => {
-    if (v.q >= 1) {
-      tok(v.l).forEach(t => {
-        const clean = t.trim();
-        const num = Number(clean);
-        if (Number.isInteger(num) && num >= 17 && num <= 50 && String(num) === clean) {
-          disp[num] = clean;
-        }
-      });
-    }
-  }));
-  const keys = Object.keys(disp).map(Number).sort((a, b) => a - b).map(String);
-  $('#sizebar').style.display = keys.length ? 'flex' : 'none';
-  if (size && keys.indexOf(size) < 0) size = '';
-  $('#sizechips').innerHTML = keys.map(k => '<button class="chip-c' + (k === size ? ' on' : '') + '" data-s="' + esc(k) + '">' + esc(disp[k]) + '</button>').join('');
+  const avail = SIZE_RANGES.filter(r =>
+    P.some(p => p.v.some(v => v.q >= 1 && matchRange(v.l, r.key)))
+  );
+  $('#sizebar').style.display = avail.length ? 'flex' : 'none';
+  if (size && !avail.some(r => r.key === size)) size = '';
+  $('#sizechips').innerHTML = avail.map(r =>
+    '<button class="chip-c' + (r.key === size ? ' on' : '') + '" data-s="' + esc(r.key) + '">' + esc(r.label) + '</button>'
+  ).join('');
 }
 function priceHtml(p) {
   if (!CFG.show_price) return '';
@@ -186,7 +199,7 @@ function card(p) {
     (p.v.length > 1 ? '<div class="mut">📏 ' + esc(sizeList(p)) + '</div>' : '') + '</div>';
 }
 function renderGrid() {
-  curList = P.filter(p => (!cat || (cat === '__offers__' ? p.off : p.g === cat)) && (!q || p.key.indexOf(q) >= 0) && (!size || p.v.some(v => v.q >= 1 && tok(v.l).some(t => t.toLowerCase() === size))));
+  curList = P.filter(p => (!cat || (cat === '__offers__' ? p.off : p.g === cat)) && (!q || p.key.indexOf(q) >= 0) && (!size || p.v.some(v => v.q >= 1 && matchRange(v.l, size))));
   shown = Math.min(PAGE, curList.length);
   $('#grid').innerHTML = curList.slice(0, shown).map(card).join('');
   $('#count').textContent = curList.length + ' منتج';
@@ -227,7 +240,9 @@ function openProduct(id) {
     return String(a.l || '').localeCompare(String(b.l || ''), 'ar');
   });
   const want = (size || q || '').toLowerCase();
-  let sel = want ? p.v.findIndex(v => v.q >= 1 && String(v.l || '').toLowerCase().indexOf(want) >= 0) : -1;
+  let sel = -1;
+  if (size) sel = p.v.findIndex(v => v.q >= 1 && matchRange(v.l, size));
+  if (sel < 0 && want) sel = p.v.findIndex(v => v.q >= 1 && String(v.l || '').toLowerCase().indexOf(want) >= 0);
   if (sel < 0) sel = Math.max(0, p.v.findIndex(v => v.q >= 1));
   let qty = 1;
   const sizes = p.v.some(v => v.l);
